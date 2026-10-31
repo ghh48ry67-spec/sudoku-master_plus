@@ -1,0 +1,1726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#2e7d32">
+<title>Sudoku Master AI – Automatic Photo Scanner & Solver</title>
+<style>
+  :root {
+    --green: #2e7d32;
+    --green-dark: #1b5e20;
+    --green-light: #e8f5e9;
+    --green-mid: #a5d6a7;
+    --accent: #43a047;
+    --danger: #c62828;
+    --warning: #f57c00;
+    --bg: #f5f7f6;
+    --card: #ffffff;
+    --text: #1b1b1b;
+    --text-soft: #5f6368;
+    --border: #d7ddd9;
+    --shadow: 0 4px 16px rgba(0,0,0,.08);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 100px;
+  }
+
+  /* ---------- HEADER ---------- */
+  .app-header {
+    background: linear-gradient(135deg, var(--green-dark), var(--green));
+    color: #fff;
+    padding: 18px 16px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-radius: 0 0 22px 22px;
+    box-shadow: 0 4px 18px rgba(27,94,32,.25);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .logo-mark {
+    width: 44px; height: 44px;
+    background: rgba(255,255,255,.18);
+    border-radius: 12px;
+    display: grid; place-items: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+  .app-header h1 {
+    font-size: 19px;
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: .3px;
+  }
+  .app-header p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    opacity: .85;
+  }
+
+  /* ---------- MAIN ---------- */
+  main { max-width: 560px; margin: 0 auto; padding: 14px 14px 0; }
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-soft);
+    background: var(--green-light);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    line-height: 1.4;
+    min-height: 42px;
+  }
+  .status-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--accent); flex-shrink: 0;
+  }
+  .status-dot.busy { background: var(--warning); animation: pulse 1s infinite; }
+  .status-dot.error { background: var(--danger); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+  /* ---------- BUTTONS ---------- */
+  .btn {
+    border: none;
+    border-radius: 12px;
+    padding: 13px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: transform .08s ease, box-shadow .15s ease, background .15s ease;
+    background: #eef1ef;
+    color: var(--text);
+    user-select: none;
+    font-family: inherit;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--green), var(--accent));
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(46,125,50,.3);
+  }
+  .btn-primary:active { box-shadow: 0 2px 6px rgba(46,125,50,.3); }
+  .btn-outline {
+    background: transparent;
+    border: 2px solid var(--green-mid);
+    color: var(--green-dark);
+  }
+  .btn-soft { background: var(--green-light); color: var(--green-dark); }
+  .btn-danger { background: #fdecea; color: var(--danger); }
+  .btn-icon { font-size: 18px; line-height: 1; }
+  .btn-block { width: 100%; }
+
+  .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .btn-grid-3 .btn { padding: 11px 6px; font-size: 13px; }
+
+  /* ---------- SCAN AREA ---------- */
+  .scan-card { text-align: center; }
+  .scan-icon {
+    width: 72px; height: 72px;
+    background: var(--green-light);
+    border-radius: 50%;
+    display: grid; place-items: center;
+    margin: 0 auto 10px;
+    font-size: 34px;
+  }
+  .scan-card h2 { margin: 0 0 4px; font-size: 18px; }
+  .scan-card p { margin: 0 0 14px; font-size: 13px; color: var(--text-soft); line-height: 1.45; }
+
+  /* ---------- SUDOKU GRID ---------- */
+  .board-wrap { position: relative; }
+  .sudoku-grid {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 1px;
+    background: #8a9a8e;
+    border: 3px solid var(--green-dark);
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 1 / 1;
+    max-width: 100%;
+    user-select: none;
+  }
+  .cell {
+    position: relative;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(17px, 5.2vw, 26px);
+    font-weight: 600;
+    color: var(--green-dark);
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .cell:nth-child(3n) { border-right: 2px solid var(--green-dark); }
+  .cell:nth-child(9n) { border-right: none; }
+  .cell:nth-child(n+19):nth-child(-n+27),
+  .cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 2px solid var(--green-dark); }
+  .cell.given { color: #1b1b1b; }
+  .cell.user { color: var(--green); }
+  .cell.uncertain { background: #fff8e1; }
+  .cell.uncertain::after {
+    content: '?';
+    position: absolute;
+    top: 1px; right: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--warning);
+  }
+  .cell.conflict { background: #ffebee !important; color: var(--danger) !important; }
+  .cell.selected { background: #c8e6c9 !important; }
+  .cell.hint-flash { animation: hintFlash .8s ease; }
+  @keyframes hintFlash { 0%{background:#fff59d} 100%{background:#fff} }
+  .cell input {
+    width: 100%; height: 100%;
+    border: none; outline: none;
+    background: transparent;
+    text-align: center;
+    font: inherit;
+    color: inherit;
+    padding: 0;
+    caret-color: var(--green);
+  }
+  .cell .fixed-digit { pointer-events: none; }
+
+  /* ---------- DIFFICULTY ---------- */
+  .diff-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .diff-pill {
+    flex: 1;
+    padding: 9px 6px;
+    border-radius: 20px;
+    border: 2px solid var(--border);
+    background: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: all .15s;
+    color: var(--text-soft);
+    user-select: none;
+  }
+  .diff-pill.active {
+    border-color: var(--green);
+    background: var(--green-light);
+    color: var(--green-dark);
+  }
+
+  /* ---------- MODAL ---------- */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    backdrop-filter: blur(2px);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 18px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 20px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.3);
+  }
+  .modal h3 { margin: 0 0 6px; font-size: 17px; }
+  .modal p { margin: 0 0 14px; font-size: 13px; color: var(--text-soft); line-height: 1.45; }
+
+  /* ---------- CAMERA ---------- */
+  .cam-wrap {
+    position: fixed; inset: 0;
+    background: #000;
+    z-index: 300;
+    display: none;
+    flex-direction: column;
+  }
+  .cam-wrap.open { display: flex; }
+  .cam-video-box {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #camVideo {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .cam-guide {
+    position: absolute;
+    inset: 12% 8%;
+    border: 2px dashed rgba(255,255,255,.65);
+    border-radius: 14px;
+    pointer-events: none;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,.18);
+  }
+  .cam-guide::before, .cam-guide::after {
+    content: '';
+    position: absolute;
+    width: 26px; height: 26px;
+    border: 3px solid #a5d6a7;
+  }
+  .cam-guide::before { top: -3px; left: -3px; border-right: none; border-bottom: none; border-radius: 8px 0 0 0; }
+  .cam-guide::after { bottom: -3px; right: -3px; border-left: none; border-top: none; border-radius: 0 0 8px 0; }
+  .cam-top-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 2;
+    background: linear-gradient(to bottom, rgba(0,0,0,.55), transparent);
+  }
+  .cam-top-bar .btn {
+    background: rgba(255,255,255,.2);
+    color: #fff;
+    padding: 9px 14px;
+    font-size: 13px;
+    backdrop-filter: blur(6px);
+  }
+  .cam-top-bar .btn.on { background: var(--accent); }
+  .cam-bottom-bar {
+    padding: 18px 16px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    background: #111;
+  }
+  .shutter {
+    width: 74px; height: 74px;
+    border-radius: 50%;
+    border: 5px solid #fff;
+    background: var(--accent);
+    cursor: pointer;
+    transition: transform .1s;
+    box-shadow: 0 0 0 4px rgba(255,255,255,.25);
+  }
+  .shutter:active { transform: scale(.9); }
+  .cam-side-btn {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.15);
+    border: none;
+    color: #fff;
+    font-size: 22px;
+    display: grid; place-items: center;
+    cursor: pointer;
+  }
+
+  /* ---------- LOADING ---------- */
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: rgba(245,247,246,.92);
+    z-index: 400;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+    backdrop-filter: blur(3px);
+  }
+  .loading-overlay.open { display: flex; }
+  .spinner {
+    width: 52px; height: 52px;
+    border: 4px solid var(--green-light);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin .9s linear infinite;
+    margin-bottom: 18px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .loading-sub { font-size: 12px; color: var(--text-soft); max-width: 280px; line-height: 1.45; }
+  .progress-track {
+    width: 220px; height: 6px;
+    background: var(--green-light);
+    border-radius: 3px;
+    margin-top: 16px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--green), var(--accent));
+    border-radius: 3px;
+    transition: width .3s ease;
+  }
+
+  /* ---------- CANDIDATE SELECTOR ---------- */
+  .candidate-list { display: flex; flex-direction: column; gap: 10px; }
+  .candidate-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 10px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    background: #fff;
+  }
+  .candidate-item:hover, .candidate-item.selected { border-color: var(--green); background: var(--green-light); }
+  .candidate-item canvas {
+    width: 64px; height: 64px;
+    border-radius: 8px;
+    background: #eee;
+    flex-shrink: 0;
+  }
+  .candidate-item .meta { font-size: 13px; color: var(--text-soft); line-height: 1.4; }
+  .candidate-item .meta strong { color: var(--text); display: block; font-size: 14px; }
+
+  /* ---------- MISC ---------- */
+  .hidden { display: none !important; }
+  .mt-10 { margin-top: 10px; }
+  .mt-14 { margin-top: 14px; }
+  .small-note { font-size: 11px; color: var(--text-soft); text-align: center; line-height: 1.4; }
+  .solution-badge {
+    display: inline-block;
+    background: var(--green-light);
+    color: var(--green-dark);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 10px;
+    margin-left: 6px;
+  }
+  @media (max-width: 380px) {
+    .btn-grid { grid-template-columns: 1fr; }
+    .btn-grid-3 { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="app-header">
+  <div class="logo-mark">♟️</div>
+  <div>
+    <h1>Sudoku Master AI</h1>
+    <p>Automatic photo scanner · No cropping needed</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- ================= STATUS ================= -->
+  <div class="status-bar" id="statusBar">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Ready. Scan a Sudoku photo or generate a new puzzle.</span>
+  </div>
+
+  <!-- ================= SCAN CARD ================= -->
+  <section class="card scan-card">
+    <div class="scan-icon">📷</div>
+    <h2>Scan Sudoku from Photo</h2>
+    <p>Point at the puzzle, capture — the board is found, straightened and read automatically.</p>
+    <div class="btn-grid">
+      <button class="btn btn-primary" id="btnCamera">
+        <span class="btn-icon">📸</span> Open Camera
+      </button>
+      <button class="btn btn-outline" id="btnGallery">
+        <span class="btn-icon">🖼️</span> Gallery / File
+      </button>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" class="hidden">
+  </section>
+
+  <!-- ================= NEW PUZZLE ================= -->
+  <section class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <h2 style="margin:0;font-size:16px;">New Puzzle</h2>
+      <span class="solution-badge" id="diffBadge">Medium</span>
+    </div>
+    <div class="diff-row" id="diffRow">
+      <div class="diff-pill" data-diff="easy">Easy</div>
+      <div class="diff-pill active" data-diff="medium">Medium</div>
+      <div class="diff-pill" data-diff="hard">Hard</div>
+      <div class="diff-pill" data-diff="expert">Expert</div>
+    </div>
+    <button class="btn btn-soft btn-block mt-10" id="btnGenerate">
+      <span class="btn-icon">✨</span> Generate New Puzzle
+    </button>
+  </section>
+
+  <!-- ================= BOARD ================= -->
+  <section class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <h2 style="margin:0;font-size:16px;">Sudoku Board</h2>
+      <span class="small-note" id="clueCount" style="text-align:right;">0 clues</span>
+    </div>
+    <div class="board-wrap">
+      <div class="sudoku-grid" id="sudokuGrid"></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="btn-grid mt-14">
+      <button class="btn btn-primary" id="btnSolve">
+        <span class="btn-icon">🧩</span> Solve
+      </button>
+      <button class="btn btn-soft" id="btnHint">
+        <span class="btn-icon">💡</span> Hint
+      </button>
+    </div>
+    <div class="btn-grid-3 mt-10">
+      <button class="btn" id="btnUndo">↩ Undo</button>
+      <button class="btn" id="btnReset">↺ Reset</button>
+      <button class="btn" id="btnClear">⌫ Clear</button>
+    </div>
+    <div class="btn-grid mt-10">
+      <button class="btn btn-soft" id="btnCopy">📋 Copy Solution</button>
+      <button class="btn btn-outline" id="btnRescan">📷 Rescan</button>
+    </div>
+    <p class="small-note mt-10">Tap any cell to edit. Yellow cells have uncertain OCR results — verify them.</p>
+  </section>
+
+</main>
+
+<!-- ================= CAMERA MODAL ================= -->
+<div class="cam-wrap" id="camWrap">
+  <div class="cam-video-box">
+    <video id="camVideo" autoplay playsinline muted></video>
+    <div class="cam-guide"></div>
+    <div class="cam-top-bar">
+      <button class="btn" id="camClose">✕ Close</button>
+      <button class="btn" id="camTorch">🔦 Torch</button>
+      <button class="btn" id="camSwitch">🔄 Flip</button>
+    </div>
+  </div>
+  <div class="cam-bottom-bar">
+    <div class="cam-side-btn" id="camGalleryBtn">🖼️</div>
+    <button class="shutter" id="shutterBtn" aria-label="Capture"></button>
+    <div class="cam-side-btn" id="camTorchSide">🔦</div>
+  </div>
+</div>
+
+<!-- ================= CANDIDATE SELECTOR ================= -->
+<div class="modal-overlay" id="candidateModal">
+  <div class="modal">
+    <h3>Multiple Sudoku boards found</h3>
+    <p>Tap the board you want to scan. The largest candidate is selected by default.</p>
+    <div class="candidate-list" id="candidateList"></div>
+    <button class="btn btn-outline btn-block mt-14" id="candidateCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- ================= LOADING ================= -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Preparing…</div>
+  <div class="loading-sub" id="loadingSub">This may take a few seconds on first run.</div>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<!-- ================= LIBRARIES ================= -->
+<script src="https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.10.0-release.1/dist/opencv.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+
+<script>
+/* =====================================================================
+   SUDOKU MASTER AI
+   Complete client-side implementation.
+   ===================================================================== */
+
+/* ------------------------- GLOBAL STATE ------------------------- */
+const STATE = {
+  board: new Array(81).fill(0),        // current board (0 = empty)
+  givens: new Array(81).fill(false),   // original clues
+  uncertain: new Array(81).fill(false),// OCR uncertain cells
+  solution: null,                      // solved board or null
+  history: [],                         // undo stack
+  selectedIndex: -1,
+  difficulty: 'medium',
+  cameraStream: null,
+  cameraFacing: 'environment',
+  torchOn: false,
+  tessWorker: null,
+  cvReady: false,
+  busy: false,
+  candidateResolver: null,             // promise resolver for board selection
+};
+
+const DIFFICULTY_CLUES = { easy: 44, medium: 36, hard: 30, expert: 25 };
+
+/* ------------------------- DOM REFS ------------------------- */
+const $ = (id) => document.getElementById(id);
+const statusBar = $('statusBar');
+const statusDot = $('statusDot');
+const statusText = $('statusText');
+const sudokuGrid = $('sudokuGrid');
+const clueCount = $('clueCount');
+const fileInput = $('fileInput');
+const loadingOverlay = $('loadingOverlay');
+const loadingText = $('loadingText');
+const loadingSub = $('loadingSub');
+const progressFill = $('progressFill');
+const camWrap = $('camWrap');
+const camVideo = $('camVideo');
+const candidateModal = $('candidateModal');
+const candidateList = $('candidateList');
+
+/* ------------------------- UI HELPERS ------------------------- */
+function setStatus(text, type = 'ok') {
+  statusText.textContent = text;
+  statusDot.className = 'status-dot';
+  if (type === 'busy') statusDot.classList.add('busy');
+  if (type === 'error') statusDot.classList.add('error');
+}
+
+function showLoading(text, sub) {
+  loadingText.textContent = text || 'Processing…';
+  loadingSub.textContent = sub || '';
+  progressFill.style.width = '0%';
+  loadingOverlay.classList.add('open');
+}
+
+function setLoading(text, sub, pct) {
+  if (text) loadingText.textContent = text;
+  if (sub !== undefined) loadingSub.textContent = sub;
+  if (pct !== undefined) progressFill.style.width = Math.min(100, Math.max(0, pct)) + '%';
+}
+
+function hideLoading() {
+  loadingOverlay.classList.remove('open');
+}
+
+function toastError(msg) {
+  setStatus(msg, 'error');
+  // Also show in loading overlay if it's open? No — just status.
+}
+
+/* ------------------------- SUDOKU LOGIC ------------------------- */
+function idx(r, c) { return r * 9 + c; }
+
+function isValidPlacement(board, r, c, val) {
+  for (let i = 0; i < 9; i++) {
+    if (i !== c && board[idx(r, i)] === val) return false;
+    if (i !== r && board[idx(i, c)] === val) return false;
+  }
+  const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+  for (let i = br; i < br + 3; i++)
+    for (let j = bc; j < bc + 3; j++)
+      if ((i !== r || j !== c) && board[idx(i, j)] === val) return false;
+  return true;
+}
+
+function validateBoard(board) {
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++) {
+      const v = board[idx(r, c)];
+      if (v !== 0 && !isValidPlacement(board, r, c, v)) return false;
+    }
+  return true;
+}
+
+/* Count solutions up to `limit` */
+function countSolutions(board, limit = 2) {
+  const b = board.slice();
+  let count = 0;
+  function solve() {
+    let bestR = -1, bestC = -1, bestCands = null;
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (b[idx(r, c)] !== 0) continue;
+        const cands = [];
+        for (let v = 1; v <= 9; v++) if (isValidPlacement(b, r, c, v)) cands.push(v);
+        if (cands.length === 0) return;
+        if (!bestCands || cands.length < bestCands.length) {
+          bestR = r; bestC = c; bestCands = cands;
+          if (cands.length === 1) break;
+        }
+      }
+      if (bestCands && bestCands.length === 1) break;
+    }
+    if (bestR === -1) { count++; return; }
+    for (const v of bestCands) {
+      b[idx(bestR, bestC)] = v;
+      solve();
+      b[idx(bestR, bestC)] = 0;
+      if (count >= limit) return;
+    }
+  }
+  solve();
+  return count;
+}
+
+/* Solve with MRV backtracking. Returns solved board or null. */
+function solveSudoku(board) {
+  const b = board.slice();
+  let nodes = 0;
+  const LIMIT = 500000;
+  function solve() {
+    if (++nodes > LIMIT) return false;
+    let bestR = -1, bestC = -1, bestCands = null;
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (b[idx(r, c)] !== 0) continue;
+        const cands = [];
+        for (let v = 1; v <= 9; v++) if (isValidPlacement(b, r, c, v)) cands.push(v);
+        if (cands.length === 0) return false;
+        if (!bestCands || cands.length < bestCands.length) {
+          bestR = r; bestC = c; bestCands = cands;
+          if (cands.length === 1) break;
+        }
+      }
+      if (bestCands && bestCands.length === 1) break;
+    }
+    if (bestR === -1) return true;
+    for (const v of bestCands) {
+      b[idx(bestR, bestC)] = v;
+      if (solve()) return true;
+      b[idx(bestR, bestC)] = 0;
+    }
+    return false;
+  }
+  return solve() ? b : null;
+}
+
+/* Generate a full valid grid using randomized backtracking */
+function generateFullGrid() {
+  const b = new Array(81).fill(0);
+  const nums = [1,2,3,4,5,6,7,8,9];
+  function fill(pos) {
+    if (pos === 81) return true;
+    const r = Math.floor(pos / 9), c = pos % 9;
+    const shuffled = nums.slice().sort(() => Math.random() - 0.5);
+    for (const v of shuffled) {
+      if (isValidPlacement(b, r, c, v)) {
+        b[idx(r, c)] = v;
+        if (fill(pos + 1)) return true;
+        b[idx(r, c)] = 0;
+      }
+    }
+    return false;
+  }
+  fill(0);
+  return b;
+}
+
+/* Generate puzzle with unique solution */
+function generatePuzzle(difficulty = 'medium') {
+  const targetClues = DIFFICULTY_CLUES[difficulty] || 36;
+  const full = generateFullGrid();
+  const puzzle = full.slice();
+  const positions = Array.from({ length: 81 }, (_, i) => i)
+    .sort(() => Math.random() - 0.5);
+  let clues = 81;
+  for (const pos of positions) {
+    if (clues <= targetClues) break;
+    const backup = puzzle[pos];
+    puzzle[pos] = 0;
+    // Check uniqueness — countSolutions with limit 2
+    if (countSolutions(puzzle, 2) !== 1) {
+      puzzle[pos] = backup;
+    } else {
+      clues--;
+    }
+  }
+  return puzzle;
+}
+
+/* ------------------------- BOARD RENDERING ------------------------- */
+function buildGrid() {
+  sudokuGrid.innerHTML = '';
+  for (let i = 0; i < 81; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.index = i;
+    cell.addEventListener('click', () => onCellClick(i));
+    sudokuGrid.appendChild(cell);
+  }
+}
+
+function renderBoard() {
+  const cells = sudokuGrid.children;
+  let clues = 0;
+  for (let i = 0; i < 81; i++) {
+    const cell = cells[i];
+    const val = STATE.board[i];
+    cell.className = 'cell';
+    cell.innerHTML = '';
+    if (STATE.givens[i]) {
+      cell.classList.add('given');
+      clues++;
+    } else if (val !== 0) {
+      cell.classList.add('user');
+    }
+    if (STATE.uncertain[i]) cell.classList.add('uncertain');
+    if (STATE.selectedIndex === i) cell.classList.add('selected');
+    if (val !== 0) cell.textContent = val;
+    else cell.textContent = '';
+  }
+  clueCount.textContent = `${clues} clue${clues !== 1 ? 's' : ''}`;
+  highlightConflicts();
+}
+
+function highlightConflicts() {
+  const cells = sudokuGrid.children;
+  // Clear conflict classes
+  for (let i = 0; i < 81; i++) cells[i].classList.remove('conflict');
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const v = STATE.board[idx(r, c)];
+      if (v === 0) continue;
+      if (!isValidPlacement(STATE.board, r, c, v)) {
+        cells[idx(r, c)].classList.add('conflict');
+      }
+    }
+  }
+}
+
+/* ------------------------- CELL EDITING ------------------------- */
+function onCellClick(i) {
+  if (STATE.busy) return;
+  // If solution is shown, allow editing only if user resets first? We'll allow editing.
+  STATE.selectedIndex = i;
+  renderBoard();
+  const cell = sudokuGrid.children[i];
+  // If cell already has content, maybe cycle? We'll open prompt-like inline edit:
+  // Simpler: show a number pad modal for mobile. We'll implement a lightweight number pad overlay.
+  showNumberPad(i);
+}
+
+function showNumberPad(i) {
+  // Remove existing pad if any
+  const existing = document.getElementById('numberPadOverlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'numberPadOverlay';
+  overlay.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:flex-end;justify-content:center;padding:16px;`;
+
+  const pad = document.createElement('div');
+  pad.style.cssText = `background:#fff;border-radius:18px;padding:16px;width:100%;max-width:360px;box-shadow:0 10px 40px rgba(0,0,0,.3);`;
+  pad.innerHTML = `<div style="text-align:center;font-size:13px;color:#5f6368;margin-bottom:10px;">Select a number</div>`;
+
+  const grid = document.createElement('div');
+  grid.style.cssText = `display:grid;grid-template-columns:repeat(3,1fr);gap:8px;`;
+
+  const setValue = (val) => {
+    if (STATE.selectedIndex === -1) return;
+    pushHistory();
+    STATE.board[i] = val;
+    STATE.uncertain[i] = false; // manual correction clears uncertainty
+    STATE.givens[i] = false;
+    STATE.solution = null;
+    overlay.remove();
+    renderBoard();
+    setStatus(val === 0 ? 'Cell cleared.' : `Cell set to ${val}.`);
+  };
+
+  for (let n = 1; n <= 9; n++) {
+    const b = document.createElement('button');
+    b.textContent = n;
+    b.style.cssText = `padding:16px;font-size:22px;font-weight:700;border:none;border-radius:12px;background:#e8f5e9;color:#1b5e20;cursor:pointer;`;
+    b.onclick = () => setValue(n);
+    grid.appendChild(b);
+  }
+
+  const erase = document.createElement('button');
+  erase.textContent = '⌫ Erase';
+  erase.style.cssText = `grid-column:span 3;padding:14px;font-size:15px;font-weight:600;border:none;border-radius:12px;background:#fdecea;color:#c62828;cursor:pointer;margin-top:4px;`;
+  erase.onclick = () => setValue(0);
+
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Cancel';
+  cancel.style.cssText = `grid-column:span 3;padding:12px;font-size:14px;border:none;border-radius:12px;background:#eee;color:#333;cursor:pointer;margin-top:4px;`;
+  cancel.onclick = () => overlay.remove();
+
+  pad.appendChild(grid);
+  pad.appendChild(erase);
+  pad.appendChild(cancel);
+  overlay.appendChild(pad);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+/* ------------------------- HISTORY ------------------------- */
+function pushHistory() {
+  STATE.history.push({
+    board: STATE.board.slice(),
+    givens: STATE.givens.slice(),
+    uncertain: STATE.uncertain.slice(),
+  });
+  if (STATE.history.length > 100) STATE.history.shift();
+}
+
+function undo() {
+  if (STATE.history.length === 0) { setStatus('Nothing to undo.', 'error'); return; }
+  const prev = STATE.history.pop();
+  STATE.board = prev.board;
+  STATE.givens = prev.givens;
+  STATE.uncertain = prev.uncertain;
+  STATE.solution = null;
+  STATE.selectedIndex = -1;
+  renderBoard();
+  setStatus('Undo successful.');
+}
+
+function resetBoard() {
+  // Restore original givens and clear user entries
+  pushHistory();
+  for (let i = 0; i < 81; i++) {
+    if (!STATE.givens[i]) STATE.board[i] = 0;
+  }
+  STATE.uncertain.fill(false);
+  STATE.solution = null;
+  STATE.selectedIndex = -1;
+  renderBoard();
+  setStatus('Board reset to scanned/generated clues.');
+}
+
+function clearBoard() {
+  pushHistory();
+  STATE.board.fill(0);
+  STATE.givens.fill(false);
+  STATE.uncertain.fill(false);
+  STATE.solution = null;
+  STATE.selectedIndex = -1;
+  renderBoard();
+  setStatus('Board cleared.');
+}
+
+/* ------------------------- SOLVE / HINT ------------------------- */
+async function handleSolve() {
+  if (STATE.busy) return;
+  const board = STATE.board.slice();
+  // Validate first
+  if (!validateBoard(board)) {
+    setStatus('Invalid puzzle: conflicting clues detected. Fix red cells first.', 'error');
+    return;
+  }
+  if (board.every(v => v !== 0)) {
+    setStatus('Board is already complete.');
+    return;
+  }
+  // Check uniqueness
+  const solutions = countSolutions(board, 2);
+  if (solutions === 0) {
+    setStatus('No solution exists. Check the clues — OCR may have misread a digit.', 'error');
+    return;
+  }
+  if (solutions > 1) {
+    setStatus('Puzzle has multiple solutions. Showing one solution.', 'busy');
+  } else {
+    setStatus('Solving…', 'busy');
+  }
+  const solved = solveSudoku(board);
+  if (!solved || !validateBoard(solved)) {
+    setStatus('Solver failed. The puzzle may be unsolvable.', 'error');
+    return;
+  }
+  STATE.solution = solved;
+  STATE.board = solved;
+  STATE.uncertain.fill(false);
+  renderBoard();
+  setStatus('Solved! ' + (solutions > 1 ? '(One of multiple solutions)' : ''));
+}
+
+function handleHint() {
+  if (STATE.busy) return;
+  const solved = solveSudoku(STATE.board);
+  if (!solved) { setStatus('Cannot find a solution for the current board.', 'error'); return; }
+  // Pick first empty cell
+  const empties = [];
+  for (let i = 0; i < 81; i++) if (STATE.board[i] === 0) empties.push(i);
+  if (empties.length === 0) { setStatus('Board is already complete.'); return; }
+  const pick = empties[Math.floor(Math.random() * empties.length)];
+  pushHistory();
+  STATE.board[pick] = solved[pick];
+  STATE.uncertain[pick] = false;
+  renderBoard();
+  const cell = sudokuGrid.children[pick];
+  cell.classList.add('hint-flash');
+  setTimeout(() => cell.classList.remove('hint-flash'), 900);
+  setStatus(`Hint: cell R${Math.floor(pick/9)+1}C${(pick%9)+1} = ${solved[pick]}.`);
+}
+
+/* ------------------------- COPY SOLUTION ------------------------- */
+async function copySolution() {
+  const board = STATE.solution || (validateBoard(STATE.board) && solveSudoku(STATE.board));
+  if (!board) { setStatus('No solution to copy yet. Solve first.', 'error'); return; }
+  const str = board.map(v => v || '.').join('');
+  try {
+    await navigator.clipboard.writeText(str);
+    setStatus('Solution copied to clipboard.');
+  } catch {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = str;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    setStatus('Solution copied.');
+  }
+}
+
+/* ------------------------- OPENCV LOADING ------------------------- */
+function waitForOpenCV() {
+  return new Promise((resolve, reject) => {
+    if (window.cv && cv.Mat) { resolve(); return; }
+    let tries = 0;
+    const iv = setInterval(() => {
+      tries++;
+      if (window.cv && cv.Mat) { clearInterval(iv); resolve(); }
+      else if (tries > 300) { clearInterval(iv); reject(new Error('OpenCV failed to load')); }
+    }, 100);
+  });
+}
+
+/* ------------------------- IMAGE PROCESSING PIPELINE ------------------------- */
+
+/* Detect candidate quadrilaterals in the image */
+function detectBoardCandidates(srcMat) {
+  const candidates = [];
+  let gray = new cv.Mat();
+  let blurred = new cv.Mat();
+  let thresh = new cv.Mat();
+  let edges = new cv.Mat();
+  let contours = new cv.MatVector();
+  let hierarchy = new cv.Mat();
+  let kernel = null;
+
+  try {
+    cv.cvtColor(srcMat, gray, cv.COLOR_RGBA2GRAY);
+    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+
+    // Technique 1: Adaptive threshold
+    cv.adaptiveThreshold(blurred, thresh, 255,
+      cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 11, 2);
+
+    // Morphological close to connect grid lines
+    kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+    cv.morphologyEx(thresh, thresh, cv.MORPH_CLOSE, kernel);
+
+    cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    collectQuads(contours, srcMat.cols * srcMat.rows * 0.01, candidates);
+
+    // Technique 2: Canny edges + dilation (fallback)
+    contours.delete(); hierarchy.delete();
+    contours = new cv.MatVector(); hierarchy = new cv.Mat();
+    cv.Canny(blurred, edges, 50, 150);
+    const kernel2 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
+    cv.dilate(edges, edges, kernel2);
+    kernel2.delete();
+    cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    collectQuads(contours, srcMat.cols * srcMat.rows * 0.01, candidates);
+
+    // Deduplicate by area & overlap
+    const unique = [];
+    for (const c of candidates) {
+      let dup = false;
+      for (const u of unique) {
+        if (Math.abs(c.area - u.area) / Math.max(c.area, u.area) < 0.25) {
+          // check centroid distance
+          const cx = c.points.reduce((s, p) => s + p.x, 0) / 4;
+          const cy = c.points.reduce((s, p) => s + p.y, 0) / 4;
+          const ux = u.points.reduce((s, p) => s + p.x, 0) / 4;
+          const uy = u.points.reduce((s, p) => s + p.y, 0) / 4;
+          if (Math.hypot(cx - ux, cy - uy) < srcMat.cols * 0.1) { dup = true; break; }
+        }
+      }
+      if (!dup) unique.push(c);
+    }
+    unique.sort((a, b) => b.area - a.area);
+    return unique.slice(0, 6);
+  } finally {
+    gray.delete(); blurred.delete(); thresh.delete(); edges.delete();
+    contours.delete(); hierarchy.delete();
+    if (kernel) kernel.delete();
+  }
+}
+
+function collectQuads(contours, minArea, out) {
+  for (let i = 0; i < contours.size(); i++) {
+    const cnt = contours.get(i);
+    const area = cv.contourArea(cnt);
+    if (area < minArea) { cnt.delete(); continue; }
+    const peri = cv.arcLength(cnt, true);
+    const approx = new cv.Mat();
+    cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+    if (approx.rows === 4 && cv.isContourConvex(approx)) {
+      const pts = [];
+      for (let j = 0; j < 4; j++) {
+        pts.push({ x: approx.data32S[j * 2], y: approx.data32S[j * 2 + 1] });
+      }
+      out.push({ points: pts, area });
+    }
+    approx.delete();
+    cnt.delete();
+  }
+}
+
+function orderCorners(pts) {
+  // Sort by y then x
+  const sorted = pts.slice().sort((a, b) => a.y - b.y || a.x - b.x);
+  const top = sorted.slice(0, 2).sort((a, b) => a.x - b.x);
+  const bottom = sorted.slice(2, 4).sort((a, b) => a.x - b.x);
+  return {
+    tl: top[0],
+    tr: top[1],
+    bl: bottom[0],
+    br: bottom[1],
+  };
+}
+
+function warpBoard(srcMat, points, outSize = 900) {
+  const { tl, tr, br, bl } = orderCorners(points);
+  const widthTop = Math.hypot(tr.x - tl.x, tr.y - tl.y);
+  const widthBottom = Math.hypot(br.x - bl.x, br.y - bl.y);
+  const heightLeft = Math.hypot(bl.x - tl.x, bl.y - tl.y);
+  const heightRight = Math.hypot(br.x - tr.x, br.y - tr.y);
+  const maxDim = Math.max(widthTop, widthBottom, heightLeft, heightRight);
+  const size = Math.max(outSize, Math.round(maxDim));
+
+  const srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
+    tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y
+  ]);
+  const dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
+    0, 0, size, 0, size, size, 0, size
+  ]);
+  const M = cv.getPerspectiveTransform(srcPts, dstPts);
+  const warped = new cv.Mat();
+  cv.warpPerspective(srcMat, warped, M, new cv.Size(size, size), cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar(255, 255, 255, 255));
+  srcPts.delete(); dstPts.delete(); M.delete();
+  return warped;
+}
+
+/* Draw candidate preview on a small canvas */
+function drawCandidatePreview(canvas, srcCanvas, points) {
+  const ctx = canvas.getContext('2d');
+  const size = 64;
+  canvas.width = size; canvas.height = size;
+  ctx.fillStyle = '#eee';
+  ctx.fillRect(0, 0, size, size);
+  const scale = size / Math.max(srcCanvas.width, srcCanvas.height);
+  const ox = (size - srcCanvas.width * scale) / 2;
+  const oy = (size - srcCanvas.height * scale) / 2;
+  ctx.drawImage(srcCanvas, ox, oy, srcCanvas.width * scale, srcCanvas.height * scale);
+  ctx.strokeStyle = '#43a047';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((p, i) => {
+    const x = ox + p.x * scale;
+    const y = oy + p.y * scale;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.stroke();
+}
+
+/* ------------------------- CELL PROCESSING ------------------------- */
+function extractCells(warpedMat, cellSize = 100) {
+  const cells = [];
+  const size = warpedMat.cols; // square
+  const step = size / 9;
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const x = Math.round(c * step);
+      const y = Math.round(r * step);
+      const w = Math.round(step);
+      const h = Math.round(step);
+      const roi = warpedMat.roi(new cv.Rect(x, y, w, h));
+      const cellMat = new cv.Mat();
+      roi.copyTo(cellMat);
+      roi.delete();
+      cells.push(cellMat);
+    }
+  }
+  return cells;
+}
+
+/* Convert cv.Mat to canvas */
+function matToCanvas(mat) {
+  const canvas = document.createElement('canvas');
+  canvas.width = mat.cols;
+  canvas.height = mat.rows;
+  cv.imshow(canvas, mat);
+  return canvas;
+}
+
+/* Preprocess a cell for OCR: resize, threshold, remove borders */
+function preprocessCellForOCR(cellMat) {
+  let gray = new cv.Mat();
+  let resized = new cv.Mat();
+  let thresh = new cv.Mat();
+  let result = null;
+
+  try {
+    // Convert to grayscale
+    if (cellMat.channels() > 1) {
+      cv.cvtColor(cellMat, gray, cv.COLOR_RGBA2GRAY);
+    } else {
+      cellMat.copyTo(gray);
+    }
+
+    // Crop 12% margin to remove grid lines
+    const m = Math.round(Math.min(gray.rows, gray.cols) * 0.12);
+    const roi = gray.roi(new cv.Rect(m, m, gray.cols - 2 * m, gray.rows - 2 * m));
+    const cropped = new cv.Mat();
+    roi.copyTo(cropped);
+    roi.delete();
+
+    // Resize to 64x64
+    cv.resize(cropped, resized, new cv.Size(64, 64), 0, 0, cv.INTER_AREA);
+    cropped.delete();
+
+    // Adaptive threshold
+    cv.adaptiveThreshold(resized, thresh, 255,
+      cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 11, 5);
+
+    // Create a white background version (black digit on white)
+    cv.bitwise_not(thresh, thresh);
+
+    // Add padding
+    const padded = new cv.Mat();
+    cv.copyMakeBorder(thresh, padded, 10, 10, 10, 10,
+      cv.BORDER_CONSTANT, new cv.Scalar(255, 255, 255, 255));
+
+    result = padded;
+  } finally {
+    gray.delete(); resized.delete(); thresh.delete();
+  }
+  return result;
+}
+
+/* Check if a cell is blank based on dark pixel ratio */
+function isCellBlank(cellMat) {
+  let gray = new cv.Mat();
+  let thresh = new cv.Mat();
+  try {
+    if (cellMat.channels() > 1) cv.cvtColor(cellMat, gray, cv.COLOR_RGBA2GRAY);
+    else cellMat.copyTo(gray);
+
+    // Crop margin
+    const m = Math.round(Math.min(gray.rows, gray.cols) * 0.15);
+    const roi = gray.roi(new cv.Rect(m, m, gray.cols - 2 * m, gray.rows - 2 * m));
+    const cropped = new cv.Mat();
+    roi.copyTo(cropped);
+    roi.delete();
+
+    cv.adaptiveThreshold(cropped, thresh, 255,
+      cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 11, 5);
+
+    const total = cropped.rows * cropped.cols;
+    let dark = 0;
+    const data = thresh.data; // CV_8U
+    for (let i = 0; i < data.length; i++) if (data[i] > 0) dark++;
+    const ratio = dark / total;
+    cropped.delete();
+    // A digit typically occupies 5–30% of the inner area.
+    return ratio < 0.015;
+  } finally {
+    gray.delete(); thresh.delete();
+  }
+}
+
+/* OCR one cell */
+async function recognizeCell(worker, cellMat) {
+  if (isCellBlank(cellMat)) return { digit: 0, confidence: 100 };
+
+  const processed = preprocessCellForOCR(cellMat);
+  const canvas = matToCanvas(processed);
+  processed.delete();
+
+  try {
+    const { data: { text, confidence } } = await worker.recognize(canvas);
+    const clean = text.replace(/[^1-9]/g, '');
+    if (clean.length === 0) return { digit: 0, confidence: 0 };
+    // Take the first digit
+    const digit = parseInt(clean[0], 10);
+    // Confidence may be undefined; default to 50
+    const conf = typeof confidence === 'number' ? confidence : 50;
+    return { digit, confidence: conf };
+  } catch (e) {
+    console.warn('OCR error', e);
+    return { digit: 0, confidence: 0 };
+  }
+}
+
+/* Get or create Tesseract worker */
+async function getTessWorker() {
+  if (STATE.tessWorker) return STATE.tessWorker;
+  setLoading('Loading OCR engine…', 'Downloading language data (first run only).', 5);
+  const worker = await Tesseract.createWorker('eng', 1, {
+    logger: (m) => {
+      if (m.status === 'loading language traineddata') {
+        setLoading('Loading OCR language…', '', 10 + (m.progress || 0) * 10);
+      }
+    },
+  });
+  await worker.setParameters({
+    tessedit_char_whitelist: '123456789',
+    tessedit_pageseg_mode: '10', // PSM_SINGLE_CHAR
+  });
+  STATE.tessWorker = worker;
+  return worker;
+}
+
+/* ------------------------- FULL SCAN PIPELINE ------------------------- */
+async function scanImage(sourceCanvas) {
+  if (STATE.busy) return;
+  STATE.busy = true;
+  setStatus('Scanning image…', 'busy');
+  showLoading('Scanning image…', 'Detecting the Sudoku board.');
+
+  try {
+    await waitForOpenCV();
+    STATE.cvReady = true;
+
+    // 1. Read source into OpenCV
+    const srcMat = cv.imread(sourceCanvas);
+    setLoading('Detecting board…', 'Looking for the Sudoku grid.', 10);
+
+    // 2. Detect candidates
+    const candidates = detectBoardCandidates(srcMat);
+    if (candidates.length === 0) {
+      srcMat.delete();
+      throw new Error('BOARD_NOT_FOUND');
+    }
+
+    // 3. Choose candidate
+    let chosen;
+    if (candidates.length === 1) {
+      chosen = candidates[0];
+    } else {
+      // Show selection modal
+      srcMat.delete();
+      chosen = await selectCandidate(candidates, sourceCanvas);
+      // Re-read srcMat because we deleted it
+      // Actually we need srcMat for warping, so re-read:
+      // We'll re-read inside selectCandidate flow.
+    }
+
+    // If chosen is null (user cancelled)
+    if (!chosen) { STATE.busy = false; hideLoading(); return; }
+
+    // Re-read source because we may have deleted it
+    const srcMat2 = cv.imread(sourceCanvas);
+    setLoading('Straightening board…', 'Applying perspective correction.', 30);
+    const warped = warpBoard(srcMat2, chosen.points, 900);
+    srcMat2.delete();
+
+    // 4. Extract cells
+    setLoading('Reading cells…', 'Segmenting 81 cells.', 40);
+    const cellMats = extractCells(warped, 100);
+    warped.delete();
+
+    // 5. OCR
+    const worker = await getTessWorker();
+    const total = cellMats.length;
+    let processedCount = 0;
+    const results = [];
+
+    for (let i = 0; i < cellMats.length; i++) {
+      const res = await recognizeCell(worker, cellMats[i]);
+      results.push(res);
+      cellMats[i].delete();
+      processedCount++;
+      if (processedCount % 9 === 0) {
+        const pct = 40 + (processedCount / total) * 50;
+        setLoading('Recognising digits…', `${processedCount} / ${total} cells`, pct);
+        // Yield to UI
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+
+    // 6. Apply Sudoku constraints to detect suspicious cells
+    setLoading('Validating…', 'Checking Sudoku constraints.', 95);
+    const board = new Array(81).fill(0);
+    const uncertain = new Array(81).fill(false);
+
+    for (let i = 0; i < 81; i++) {
+      const { digit, confidence } = results[i];
+      board[i] = digit;
+      // Mark uncertain if low confidence or digit 0 with moderate confidence
+      if (digit !== 0 && confidence < 65) uncertain[i] = true;
+      if (digit === 0 && confidence > 30) uncertain[i] = true;
+    }
+
+    // Constraint-based suspicion: if a row/col/box has duplicates, mark those cells
+    for (let r = 0; r < 9; r++) {
+      const counts = {};
+      for (let c = 0; c < 9; c++) {
+        const v = board[idx(r, c)];
+        if (v !== 0) counts[v] = (counts[v] || 0) + 1;
+      }
+      for (let c = 0; c < 9; c++) {
+        const v = board[idx(r, c)];
+        if (v !== 0 && counts[v] > 1) uncertain[idx(r, c)] = true;
+      }
+    }
+    for (let c = 0; c < 9; c++) {
+      const counts = {};
+      for (let r = 0; r < 9; r++) {
+        const v = board[idx(r, c)];
+        if (v !== 0) counts[v] = (counts[v] || 0) + 1;
+      }
+      for (let r = 0; r < 9; r++) {
+        const v = board[idx(r, c)];
+        if (v !== 0 && counts[v] > 1) uncertain[idx(r, c)] = true;
+      }
+    }
+    for (let br = 0; br < 3; br++) {
+      for (let bc = 0; bc < 3; bc++) {
+        const counts = {};
+        for (let r = br * 3; r < br * 3 + 3; r++) {
+          for (let c = bc * 3; c < bc * 3 + 3; c++) {
+            const v = board[idx(r, c)];
+            if (v !== 0) counts[v] = (counts[v] || 0) + 1;
+          }
+        }
+        for (let r = br * 3; r < br * 3 + 3; r++) {
+          for (let c = bc * 3; c < bc * 3 + 3; c++) {
+            const v = board[idx(r, c)];
+            if (v !== 0 && counts[v] > 1) uncertain[idx(r, c)] = true;
+          }
+        }
+      }
+    }
+
+    // 7. Commit to state
+    pushHistory();
+    STATE.board = board;
+    STATE.givens = board.map(v => v !== 0);
+    STATE.uncertain = uncertain;
+    STATE.solution = null;
+    STATE.selectedIndex = -1;
+    renderBoard();
+
+    const clueTotal = board.filter(v => v !== 0).length;
+    const uncertainCount = uncertain.filter(Boolean).length;
+
+    setLoading('Done', '', 100);
+    setTimeout(hideLoading, 300);
+
+    if (clueTotal === 0) {
+      setStatus('No digits recognized. Try better lighting or a clearer photo.', 'error');
+    } else if (uncertainCount > 0) {
+      setStatus(`Scan complete. ${clueTotal} clues found. ${uncertainCount} uncertain cell(s) highlighted — please verify.`, 'busy');
+    } else {
+      setStatus(`Scan complete. ${clueTotal} clues recognized. Verify and press Solve.`);
+    }
+  } catch (err) {
+    console.error(err);
+    hideLoading();
+    if (err.message === 'BOARD_NOT_FOUND') {
+      toastError('Could not find a Sudoku board. Move the camera farther away, improve lighting, and keep the full board visible.');
+    } else if (err.message && err.message.includes('OpenCV')) {
+      toastError('Computer-vision engine failed to load. Check your internet connection and reload.');
+    } else {
+      toastError('Scan failed: ' + (err.message || 'Unknown error. Try another photo.'));
+    }
+  } finally {
+    STATE.busy = false;
+  }
+}
+
+/* Candidate selection modal */
+function selectCandidate(candidates, srcCanvas) {
+  return new Promise((resolve) => {
+    candidateList.innerHTML = '';
+    candidates.forEach((c, i) => {
+      const item = document.createElement('div');
+      item.className = 'candidate-item' + (i === 0 ? ' selected' : '');
+      const canvas = document.createElement('canvas');
+      drawCandidatePreview(canvas, srcCanvas, c.points);
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = `<strong>Board ${i + 1}</strong>Area: ${Math.round(c.area).toLocaleString()} px²`;
+      item.appendChild(canvas);
+      item.appendChild(meta);
+      item.addEventListener('click', () => {
+        candidateList.querySelectorAll('.candidate-item').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+        // Resolve on next frame so UI updates
+        setTimeout(() => {
+          candidateModal.classList.remove('open');
+          STATE.candidateResolver = null;
+          resolve(c);
+        }, 80);
+      });
+      candidateList.appendChild(item);
+    });
+
+    $('candidateCancel').onclick = () => {
+      candidateModal.classList.remove('open');
+      STATE.candidateResolver = null;
+      resolve(null);
+    };
+
+    STATE.candidateResolver = resolve;
+    candidateModal.classList.add('open');
+  });
+}
+
+/* ------------------------- CAMERA ------------------------- */
+async function startCamera(facing = 'environment') {
+  try {
+    stopCamera();
+    const constraints = {
+      audio: false,
+      video: {
+        facingMode: facing,
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+    };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    STATE.cameraStream = stream;
+    STATE.cameraFacing = facing;
+    camVideo.srcObject = stream;
+    await camVideo.play();
+    camWrap.classList.add('open');
+    setStatus('Camera ready. Frame the full Sudoku board.', 'busy');
+    // Reset torch state
+    STATE.torchOn = false;
+    updateTorchUI();
+  } catch (e) {
+    console.error(e);
+    setStatus('Camera unavailable: ' + (e.message || 'Permission denied.'), 'error');
+    camWrap.classList.remove('open');
+  }
+}
+
+function stopCamera() {
+  if (STATE.cameraStream) {
+    STATE.cameraStream.getTracks().forEach(t => t.stop());
+    STATE.cameraStream = null;
+  }
+  camVideo.srcObject = null;
+  camWrap.classList.remove('open');
+  STATE.torchOn = false;
+}
+
+async function toggleTorch() {
+  if (!STATE.cameraStream) return;
+  const track = STATE.cameraStream.getVideoTracks()[0];
+  if (!track) return;
+  try {
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    if (!caps.torch) {
+      setStatus('Torch not supported on this camera.', 'error');
+      return;
+    }
+    STATE.torchOn = !STATE.torchOn;
+    await track.applyConstraints({ advanced: [{ torch: STATE.torchOn }] });
+    updateTorchUI();
+    setStatus(STATE.torchOn ? 'Torch on.' : 'Torch off.');
+  } catch (e) {
+    setStatus('Could not toggle torch.', 'error');
+  }
+}
+
+function updateTorchUI() {
+  const btn1 = $('camTorch');
+  const btn2 = $('camTorchSide');
+  [btn1, btn2].forEach(b => {
+    if (!b) return;
+    b.classList.toggle('on', STATE.torchOn);
+    b.textContent = STATE.torchOn ? '🔦 On' : '🔦';
+  });
+}
+
+function capturePhoto() {
+  if (!STATE.cameraStream) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = camVideo.videoWidth;
+  canvas.height = camVideo.videoHeight;
+  if (canvas.width === 0 || canvas.height === 0) {
+    setStatus('Camera not ready yet. Wait a moment and try again.', 'error');
+    return;
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(camVideo, 0, 0, canvas.width, canvas.height);
+  stopCamera();
+
+  // Blur detection
+  if (isBlurry(canvas)) {
+    setStatus('Photo looks blurry. Hold steady and try again.', 'error');
+    // Still proceed? We'll let user decide via status. Proceed anyway.
+  }
+
+  scanImage(canvas);
+}
+
+function isBlurry(canvas) {
+  // Laplacian variance on a downscaled grayscale image
+  const w = 300, h = Math.round(300 * canvas.height / canvas.width);
+  const tmp = document.createElement('canvas');
+  tmp.width = w; tmp.height = h;
+  const ctx = tmp.getContext('2d');
+  ctx.drawImage(canvas, 0, 0, w, h);
+  const data = ctx.getImageData(0, 0, w, h).data;
+  const gray = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    gray[i] = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
+  }
+  let sum = 0, sumSq = 0, count = 0;
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      const lap = -4 * gray[i] + gray[i - 1] + gray[i + 1] + gray[i - w] + gray[i + w];
+      sum += lap; sumSq += lap * lap; count++;
+    }
+  }
+  const mean = sum / count;
+  const variance = sumSq / count - mean * mean;
+  return variance < 80; // threshold tuned experimentally
+}
+
+/* ------------------------- FILE / GALLERY ------------------------- */
+function handleFile(file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    setStatus('Please select an image file.', 'error');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      scanImage(canvas);
+    };
+    img.onerror = () => setStatus('Could not read the image file.', 'error');
+    img.src = e.target.result;
+  };
+  reader.onerror = () => setStatus('Could not read the file.', 'error');
+  reader.readAsDataURL(file);
+}
+
+/* ------------------------- GENERATE PUZZLE ------------------------- */
+function handleGenerate() {
+  if (STATE.busy) return;
+  showLoading('Generating puzzle…', 'Creating a unique ' + STATE.difficulty + ' puzzle.');
+  setLoading('Generating…', 'This may take a moment.', 30);
+  // Use setTimeout to let UI render
+  setTimeout(() => {
+    try {
+      const puzzle = generatePuzzle(STATE.difficulty);
+      pushHistory();
+      STATE.board = puzzle.slice();
+      STATE.givens = puzzle.map(v => v !== 0);
+      STATE.uncertain.fill(false);
+      STATE.solution = null;
+      STATE.selectedIndex = -1;
+      renderBoard();
+      setLoading('Done', '', 100);
+      setTimeout(hideLoading, 200);
+      const clues = puzzle.filter(v => v !== 0).length;
+      setStatus(`New ${STATE.difficulty} puzzle generated with ${clues} clues.`);
+    } catch (e) {
+      hideLoading();
+      setStatus('Puzzle generation failed: ' + e.message, 'error');
+    }
+  }, 100);
+}
+
+/* ------------------------- INIT ------------------------- */
+function init() {
+  buildGrid();
+  renderBoard();
+
+  // Difficulty pills
+  document.querySelectorAll('.diff-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.diff-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      STATE.difficulty = pill.dataset.diff;
+      $('diffBadge').textContent = pill.dataset.diff.charAt(0).toUpperCase() + pill.dataset.diff.slice(1);
+    });
+  });
+
+  // Buttons
+  $('btnCamera').addEventListener('click', () => startCamera('environment'));
+  $('btnGallery').addEventListener('click', () => fileInput.click());
+  $('btnRescan').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) handleFile(file);
+    fileInput.value = '';
+  });
+
+  $('btnGenerate').addEventListener('click', handleGenerate);
+  $('btnSolve').addEventListener('click', handleSolve);
+  $('btnHint').addEventListener('click', handleHint);
+  $('btnUndo').addEventListener('click', undo);
+  $('btnReset').addEventListener('click', resetBoard);
+  $('btnClear').addEventListener('click', clearBoard);
+  $('btnCopy').addEventListener('click', copySolution);
+
+  // Camera controls
+  $('camClose').addEventListener('click', stopCamera);
+  $('camTorch').addEventListener('click', toggleTorch);
+  $('camTorchSide').addEventListener('click', toggleTorch);
+  $('camSwitch').addEventListener('click', () => {
+    const newFacing = STATE.cameraFacing === 'environment' ? 'user' : 'environment';
+    startCamera(newFacing);
+  });
+  $('shutterBtn').addEventListener('click', capturePhoto);
+  $('camGalleryBtn').addEventListener('click', () => {
+    stopCamera();
+    fileInput.click();
+  });
+
+  // Escape key closes modals
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (camWrap.classList.contains('open')) stopCamera();
+      if (candidateModal.classList.contains('open')) {
+        candidateModal.classList.remove('open');
+        if (STATE.candidateResolver) STATE.candidateResolver(null);
+      }
+      const pad = document.getElementById('numberPadOverlay');
+      if (pad) pad.remove();
+    }
+  });
+
+  // Preload OpenCV in background
+  waitForOpenCV().then(() => { STATE.cvReady = true; }).catch(() => {});
+
+  setStatus('Ready. Scan a photo or generate a new puzzle.');
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
